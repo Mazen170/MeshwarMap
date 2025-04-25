@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>خريطة الرحلة</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <style>
+      html, body, #map {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=default"></script>
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key=
+AIzaSyCGnMlvAmuOVV3-iGXxRDnr800OYw-i9-A"
+      defer
+    ></script>
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <script>
+      let map, startMarker, endMarker, routePath;
+
+      async function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: { lat: 24.7136, lng: 46.6753 }, // الرياض كمثال
+          zoom: 13,
+          styles: [
+            { elementType: "geometry", stylers: [{ color: "#eaeaea" }] },
+            { elementType: "labels.text.fill", stylers: [{ color: "#333" }] },
+            { elementType: "labels.text.stroke", stylers: [{ color: "#fff" }] },
+            {
+              featureType: "poi",
+              elementType: "geometry",
+              stylers: [{ color: "#d6d6d6" }]
+            },
+            {
+              featureType: "water",
+              elementType: "geometry",
+              stylers: [{ color: "#c9d6de" }]
+            }
+          ]
+        });
+
+        map.addListener("click", (e) => handleClick(e.latLng));
+      }
+
+      async function handleClick(latlng) {
+        if (!startMarker) {
+          startMarker = new google.maps.Marker({
+            position: latlng,
+            map,
+            label: "A"
+          });
+        } else if (!endMarker) {
+          endMarker = new google.maps.Marker({
+            position: latlng,
+            map,
+            label: "B"
+          });
+          await drawRoute(startMarker.getPosition(), endMarker.getPosition());
+        }
+      }
+
+      async function drawRoute(start, end) {
+        const url = `https://api.openrouteservice.org/v2/directions/driving-car?api_key=5b3ce3597851110001cf624826fadde3b94c452aa5882f641b1fb0f7`;
+
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            coordinates: [
+              [start.lng(), start.lat()],
+              [end.lng(), end.lat()]
+            ]
+          })
+        });
+
+        const data = await response.json();
+        const coords = data.features[0].geometry.coordinates.map(c => ({
+          lat: c[1],
+          lng: c[0]
+        }));
+
+        const distanceKm = (data.features[0].properties.segments[0].distance / 1000).toFixed(2);
+        const cost = (distanceKm * 1.5).toFixed(2);
+
+        routePath = new google.maps.Polyline({
+          path: coords,
+          geodesic: true,
+          strokeColor: "#2196f3",
+          strokeOpacity: 0.9,
+          strokeWeight: 5
+        });
+        routePath.setMap(map);
+
+        const info = new google.maps.InfoWindow({
+          position: end,
+          content: `المسافة: ${distanceKm} كم<br>التكلفة: ${cost} ر.ي`
+        });
+        info.open(map);
+      }
+
+      window.initMap = initMap;
+    </script>
+  </body>
+</html>
